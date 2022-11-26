@@ -48,13 +48,11 @@ const getWordleResponse = async (page) => {
   return datas;
 }
 
-const inputWord = async (page, words) => {
-  for (const word of words) {
-    await delay(1000);
-    await page.keyboard.type(word);
-    await page.keyboard.press('Enter');
-    await delay(1000);
-  }
+const inputWord = async (page, word) => {
+  await delay(1000);
+  await page.keyboard.type(word);
+  await page.keyboard.press('Enter');
+  await delay(1000);
 };
 
 const convCell = (state) => {
