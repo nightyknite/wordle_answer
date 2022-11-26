@@ -1,8 +1,9 @@
 const puppeteer = require('puppeteer');
-//const axios = require('axios');
-//const { JSDOM } = require('jsdom');
-const { candiateWords } = require('./candiateWords');
+const { JSDOM } = require('jsdom');
+const axios = require('axios');
 
+const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
+let candiateWords = [];
 let wordleResponse = [];
 
 const delay = (time) => {
@@ -180,11 +181,31 @@ const searchCorrectWords = async (page) => {
 
 };
 
+const setCandiateBaseWords = async () => {
+  const res = await axios.get(TARGET_URL);
+  const { data } = res;
+  const dom = new JSDOM(data);
+  const scriptLists = dom.window.document.querySelectorAll('script');
+  for (let item of scriptLists) {
+    if (item.src.indexOf('wordle.') != -1) {
+      const resc = await axios.get(item.src);
+      let content = resc.data;
+      content = content.slice(content.indexOf('it=[') + 4, content.length);
+      content = content.slice(0, content.indexOf(']'));
+      const words = content.replace(/"/g, '').split(',');
+      candiateWords = words;
+      break;
+    }
+  }
+}
+
 (async () => {
-  const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
   const options = {
     headless: true,
   };
+
+  await setCandiateBaseWords();
+
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
 
