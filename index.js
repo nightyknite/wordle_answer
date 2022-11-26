@@ -70,11 +70,11 @@ const getCandidateWord = () => {
   }
 
   // 全て存在する文字のみの候補
-  const presentLetters = wordleResponse.flat().filter(v => (v.state === 'present' || v.state === 'correct')).map(v => v.text);
+  const presentLetters = wordleResponse.flat().filter(v => v.state === 'present' || v.state === 'correct').map(v => v.text);
   if (presentLetters && presentLetters.length > 0) {
     words = words.filter((word) => {            
       return presentLetters.every(v => {
-        return (word.indexOf(v) >= 0);
+        return word.indexOf(v) >= 0;
       });
     });
   }
@@ -90,7 +90,7 @@ const getCandidateWord = () => {
     }
     words = words.filter((word) => {
       return !absentLetters.some(v => {
-        return (word.indexOf(v) >= 0)
+        return word.indexOf(v) >= 0
       });
     });
   }
@@ -98,7 +98,7 @@ const getCandidateWord = () => {
   // 前回使用した文字を除外
   words = words.filter((word) => {
     for (const items of wordleResponse) {
-      if (word === (items[0].text + items[1].text + items[2].text + items[3].text + items[4].text)) {
+      if (word === items[0].text + items[1].text + items[2].text + items[3].text + items[4].text) {
         return false;
       }
     }
