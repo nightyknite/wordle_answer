@@ -66,6 +66,10 @@ const getCandidateWord = () => {
     let words = [];
     words = candiateWords;
 
+    if (wordleResponse.length === 0) {
+        return words[Math.floor(Math.random() * words.length)];
+    }
+
     // 全て存在する文字のみの候補
     const presentLetters = wordleResponse.flat().filter(v => (v.state === 'present' || v.state === 'correct')).map(v => v.text);
     if (presentLetters && presentLetters.length > 0) {
@@ -130,6 +134,7 @@ const searchCorrectWords = async (page) => {
 
     for (let word of ['rugby', 'moved', 'plans', 'witch']) {
         candiateWord = word;
+        // candiateWord = getCandidateWord();
         console.log(candiateWord);
         await inputWords(page, [candiateWord]);
         await delay(1000);
@@ -180,7 +185,7 @@ const searchCorrectWords = async (page) => {
   const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
   const options = {
     headless: true,
-  };
+  };  
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
 
@@ -189,6 +194,6 @@ const searchCorrectWords = async (page) => {
   await page.click('button[aria-label="Close"]');
   await searchCorrectWords(page);
   await page.screenshot({ path: 'wordle2.png', fullPage: true });
-  await browser.close();
+  await browser.close(); 
 
 })()
