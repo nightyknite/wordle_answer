@@ -51,10 +51,8 @@ const getWordleResponse = async (page) => {
 }
 
 const inputWord = async (page, word) => {
-  await delay(1000);
   await page.keyboard.type(word);
   await page.keyboard.press('Enter');
-  await delay(1000);
 };
 
 const convCell = (state) => {
@@ -138,7 +136,23 @@ const getCandidateWord = () => {
     }
   }
 
-  console.log('candiate', words);
+  // 存在した文字が同じ位置にある単語は除外する
+  words = words.filter((word) => {
+    for (const items of wordleResponse) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].state === 'present') {
+          if (word.indexOf(items[i].text) !== -1 && word.indexOf(items[i].text) === i) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+      }            
+    }
+    return true;
+  });
+  
+  console.log(words);
   const candidateWord = words[Math.floor(Math.random() * words.length)];
   return candidateWord;
 }
@@ -153,8 +167,9 @@ const operateWordlePage = async (page) => {
       candiateWord = word;
     }
     console.log(candiateWord);
-    await inputWord(page, candiateWord);
     await delay(1000);
+    await inputWord(page, candiateWord);
+    await delay(2000);
     wordleResponse = await getWordleResponse(page);
     await delay(1000);
     outputCells();
