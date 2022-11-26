@@ -12,21 +12,23 @@ const delay = (time) => {
   });
 }
 
-const setCandiateBaseWords = async () => {
+const getCandiateBaseWords = async () => {
   const res = await axios.get(TARGET_URL);
   const { data } = res;
   const dom = new JSDOM(data);
   const scriptLists = dom.window.document.querySelectorAll('script');
   for (const item of scriptLists) {
+    // scriptタグからwordle.xxx.js形式のファイルを読み込む
     if (item.src.indexOf('wordle.') != -1) {
       const resc = await axios.get(item.src);
       let content = resc.data;
+      // it=["". ... ""]の中にある単語一覧
       content = content.slice(content.indexOf('it=[') + 4, content.length);
       content = content.slice(0, content.indexOf(']'));
-      candiateWords = content.replace(/"/g, '').split(',');
-      break;
+      return content.replace(/"/g, '').split(',');
     }
   }
+  return '';
 }
 
 const getWordleResponse = async (page) => {
@@ -168,7 +170,7 @@ const operateWordlePage = async (page) => {
 (async () => {
 
   // 解答候補単語全リストを取得 
-  await setCandiateBaseWords();
+  candiateWords = await getCandiateBaseWords();
   const options = {
     headless: true,
   };
