@@ -133,8 +133,8 @@ const searchCorrectWords = async (page) => {
 
   for (let word of ['rugby', 'moved', 'plans', 'witch']) {
     candiateWord = word;
-    // candiateWord = getCandidateWord();
     console.log(candiateWord);
+    getCandidateWord();
     await inputWords(page, [candiateWord]);
     await delay(1000);
     wordleResponse = await getWordleResponse(page);
@@ -184,7 +184,7 @@ const searchCorrectWords = async (page) => {
   const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
   const options = {
     headless: true,
-  };  
+  };
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
 
