@@ -12,6 +12,23 @@ const delay = (time) => {
   });
 }
 
+const setCandiateBaseWords = async () => {
+  const res = await axios.get(TARGET_URL);
+  const { data } = res;
+  const dom = new JSDOM(data);
+  const scriptLists = dom.window.document.querySelectorAll('script');
+  for (const item of scriptLists) {
+    if (item.src.indexOf('wordle.') != -1) {
+      const resc = await axios.get(item.src);
+      let content = resc.data;
+      content = content.slice(content.indexOf('it=[') + 4, content.length);
+      content = content.slice(0, content.indexOf(']'));
+      candiateWords = content.replace(/"/g, '').split(',');
+      break;
+    }
+  }
+}
+
 const getWordleResponse = async (page) => {
   const rowSelector = 'div[class*="Row-module_row"]';
   const datas = await page.evaluate((selector) => {
@@ -31,7 +48,7 @@ const getWordleResponse = async (page) => {
   return datas;
 }
 
-const inputWords = async (page, words) => {
+const inputWord = async (page, words) => {
   for (const word of words) {
     await delay(1000);
     await page.keyboard.type(word);
@@ -47,7 +64,7 @@ const convCell = (state) => {
   if (state === 'empty') return '';
 }
 
-const generateResultCells = () => {
+const outputCells = () => {
   for (const row of wordleResponse) {
     console.log(row.map((c) => convCell(c.state)).join(''));
   }
@@ -66,6 +83,7 @@ const getCandidateWord = () => {
   let words = [];
   words = candiateWords;
 
+  // 初回はランダムで出力
   if (wordleResponse.length === 0) {
     return words[Math.floor(Math.random() * words.length)];
   }
@@ -96,20 +114,17 @@ const getCandidateWord = () => {
     });
   }
 
-  // 前回使用した文字を除外
+  // 前回使用した文字の場合は除外
   words = words.filter((word) => {
-    for (const items of wordleResponse) {
-      if (word === items[0].text + items[1].text + items[2].text + items[3].text + items[4].text) {
-        return false;
-      }
-    }
-    return true;
+    return !wordleResponse.some(r => {
+      return word === r.map(v => v.text).join('');
+    });    
   });
 
   // 存在してかつ位置も同じ条件で絞り込む
   let correctWords = ['', '', '', '', ''];
   for (const items of wordleResponse) {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < items.length; i++) {
       if (items[i].state === 'correct') {
         correctWords[i] = items[i].text;
       }
@@ -128,91 +143,45 @@ const getCandidateWord = () => {
   return candidateWord;
 }
 
-const searchCorrectWords = async (page) => {
+const operateWordlePage = async (page) => {
   let correctWord = '';
   let candiateWord = '';
 
-  for (let word of ['rugby', 'moved', 'plans', 'witch']) {
-    candiateWord = word;
+  for (const word of ['rugby', 'moved', 'plans', 'witch', '', '']) {
+    candiateWord = getCandidateWord();
+    if (word.length > 0) {
+      candiateWord = word;
+    }
     console.log(candiateWord);
-    getCandidateWord();
-    await inputWords(page, [candiateWord]);
+    await inputWord(page, candiateWord);
     await delay(1000);
     wordleResponse = await getWordleResponse(page);
     await delay(1000);
-    generateResultCells();
-    // 4回以内で正解
+    outputCells();
     correctWord = getCorrectWord();
     if (correctWord !== '') {
+      console.log('answer', correctWord);
       return;
     }
   }
-
-  // 5回目入力
-  candiateWord = getCandidateWord();
-  console.log(candiateWord);
-  await inputWords(page, [candiateWord]);
-  await delay(1000);
-  wordleResponse = await getWordleResponse(page);
-  await delay(1000);
-  generateResultCells();
-  // 5回目で正解
-  correctWord = getCorrectWord();
-  if (correctWord !== '') {
-    console.log('answer', correctWord);
-    return;
-  }
-
-  // 6回目入力
-  candiateWord = getCandidateWord();
-  console.log(candiateWord);
-  await inputWords(page, [candiateWord]);
-  await delay(1000);
-  wordleResponse = await getWordleResponse(page);
-  await delay(1000);
-  generateResultCells();
-  // 6回目で正解
-  correctWord = getCorrectWord();
-  if (correctWord !== '') {
-    console.log('answer', correctWord);
-    return;
-  }
   return;
-
 };
 
-const setCandiateBaseWords = async () => {
-  const res = await axios.get(TARGET_URL);
-  const { data } = res;
-  const dom = new JSDOM(data);
-  const scriptLists = dom.window.document.querySelectorAll('script');
-  for (let item of scriptLists) {
-    if (item.src.indexOf('wordle.') != -1) {
-      const resc = await axios.get(item.src);
-      let content = resc.data;
-      content = content.slice(content.indexOf('it=[') + 4, content.length);
-      content = content.slice(0, content.indexOf(']'));
-      const words = content.replace(/"/g, '').split(',');
-      candiateWords = words;
-      break;
-    }
-  }
-}
-
 (async () => {
+
+  // 解答候補単語全リストを取得 
+  await setCandiateBaseWords();
   const options = {
     headless: true,
   };
-
-  await setCandiateBaseWords();
-
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
-
   await page.goto(TARGET_URL);
   await page.screenshot({ path: 'wordle1.png', fullPage: true });
+  // ポップアップを閉じる
   await page.click('button[aria-label="Close"]');
-  await searchCorrectWords(page);
+  // wordle解答入力を行う
+  await operateWordlePage(page);
   await page.screenshot({ path: 'wordle2.png', fullPage: true });
   await browser.close();
 
