@@ -1,4 +1,4 @@
-# wordle_answer
+# wordle_solver
 
 
 ```
