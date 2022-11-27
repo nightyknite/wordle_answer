@@ -3,8 +3,6 @@ const { JSDOM } = require('jsdom');
 const axios = require('axios');
 
 const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
-let candiateWords = [];
-let wordleResponse = [];
 
 const delay = (time) => {
   return new Promise((resolve) => { 
@@ -28,13 +26,13 @@ const getCandiateBaseWords = async () => {
       return content.replace(/"/g, '').split(',');
     }
   }
-  return '';
+  return [];
 }
 
-const getWordleResponse = async (page) => {
+const getWordleTable = async (page) => {
   const rowSelector = 'div[class*="Row-module_row"]';
-  const datas = await page.evaluate((selector) => {
-    let datas = [];
+  const table = await page.evaluate((selector) => {
+    let dataRows = [];
     const rows = document.querySelectorAll(selector);
     rows.forEach((element) => {
       const cellSelector = 'div[class*="Tile-module_tile"]';
@@ -43,11 +41,11 @@ const getWordleResponse = async (page) => {
       cells.forEach((cell) => {
         dataCells.push({text: cell.textContent, state: cell.dataset.state})
       });
-      datas.push(dataCells);
+      dataRows.push(dataCells);
     });
-    return datas;
+    return dataRows;
   }, rowSelector);
-  return datas;
+  return table;
 }
 
 const inputWord = async (page, word) => {
@@ -62,32 +60,31 @@ const convCell = (state) => {
   if (state === 'empty') return '';
 }
 
-const outputCells = () => {
-  for (const row of wordleResponse) {
-    console.log(row.map((c) => convCell(c.state)).join(''));
+const outputCells = (wordleTable) => {
+  for (const row of wordleTable) {
+    console.log(row.map((v) => convCell(v.state)).join(''));
   }
 };
 
-const getCorrectWord = () => {
-  for (const row of wordleResponse) {
-    const isCorrect = row.every((c) => {return c.state === 'correct';});
-    if (isCorrect) return row.map((c) => c.text).join('');
+const getCorrectWord = (wordleTable) => {
+  for (const row of wordleTable) {
+    const isCorrect = row.every((v) => {return v.state === 'correct';});
+    if (isCorrect) return row.map((v) => v.text).join('');
   }
   return '';
 };
 
-const getCandidateWord = () => {
+const getCandidateWord = (wordleTable, candiateWords) => {
     
   let words = [];
   words = candiateWords;
-
   // 初回はランダムで出力
-  if (wordleResponse.length === 0) {
+  if (wordleTable.length === 0) {
     return words[Math.floor(Math.random() * words.length)];
   }
 
   // 全て存在する文字のみの候補
-  const presentLetters = wordleResponse.flat().filter(v => v.state === 'present' || v.state === 'correct').map(v => v.text);
+  const presentLetters = wordleTable.flat().filter(v => v.state === 'present' || v.state === 'correct').map(v => v.text);
   if (presentLetters && presentLetters.length > 0) {
     words = words.filter((word) => {            
       return presentLetters.every(v => {
@@ -97,7 +94,7 @@ const getCandidateWord = () => {
   }
 
   // 存在しない文字を除外した候補
-  let absentLetters = wordleResponse.flat().filter(v => v.state === 'absent').map(v => v.text);
+  let absentLetters = wordleTable.flat().filter(v => v.state === 'absent').map(v => v.text);
   if (absentLetters && absentLetters.length > 0) {
     if (presentLetters && presentLetters.length > 0) {
       // presentにある文字は除外する
@@ -114,14 +111,14 @@ const getCandidateWord = () => {
 
   // 前回使用した文字の場合は除外
   words = words.filter((word) => {
-    return !wordleResponse.some(r => {
+    return !wordleTable.some(r => {
       return word === r.map(v => v.text).join('');
-    });    
+    });
   });
 
   // 存在してかつ位置も同じ条件で絞り込む
   let correctWords = ['', '', '', '', ''];
-  for (const items of wordleResponse) {
+  for (const items of wordleTable) {
     for (let i = 0; i < items.length; i++) {
       if (items[i].state === 'correct') {
         correctWords[i] = items[i].text;
@@ -138,7 +135,7 @@ const getCandidateWord = () => {
 
   // 存在した文字が同じ位置にある単語は除外する
   words = words.filter((word) => {
-    for (const items of wordleResponse) {
+    for (const items of wordleTable) {
       for (let i = 0; i < items.length; i++) {
         if (items[i].state === 'present') {
           if (word.indexOf(items[i].text) !== -1 && word.indexOf(items[i].text) === i) {
@@ -158,11 +155,13 @@ const getCandidateWord = () => {
 }
 
 const operateWordlePage = async (page) => {
-  let correctWord = '';
-  let candiateWord = '';
+
+  // 解答候補単語全リストを取得 
+  const candiateWords = await getCandiateBaseWords();
 
   for (const word of ['rugby', 'moved', 'plans', 'witch', '', '']) {
-    candiateWord = getCandidateWord();
+    let wordleTable = await getWordleTable(page);
+    let candiateWord = getCandidateWord(wordleTable, candiateWords);
     if (word.length > 0) {
       candiateWord = word;
     }
@@ -170,12 +169,12 @@ const operateWordlePage = async (page) => {
     await delay(1000);
     await inputWord(page, candiateWord);
     await delay(2000);
-    wordleResponse = await getWordleResponse(page);
+    wordleTable = await getWordleTable(page);
     await delay(1000);
-    outputCells();
-    correctWord = getCorrectWord();
+    outputCells(wordleTable);
+    const correctWord = getCorrectWord(wordleTable);
     if (correctWord !== '') {
-      console.log('answer', correctWord);
+      console.log('answer is', correctWord);
       return;
     }
   }
@@ -183,11 +182,12 @@ const operateWordlePage = async (page) => {
 };
 
 (async () => {
-
-  // 解答候補単語全リストを取得 
-  candiateWords = await getCandiateBaseWords();
   const options = {
-    headless: true,
+    headless: false,
+    defaultViewport: {
+      width: 400,
+      height: 600,
+    }
   };
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
