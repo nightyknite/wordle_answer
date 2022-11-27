@@ -1,5 +1,7 @@
 # wordle_solver
 
+![demo](https://user-images.githubusercontent.com/3150829/204144268-d02f871c-91df-4181-80df-fd2d3ecdd7d9.gif)
+
 
 ```
 
