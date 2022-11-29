@@ -39,9 +39,13 @@ const getWordleTable = async (page) => {
       const cells = element.querySelectorAll(cellSelector);
       let dataCells = [];
       cells.forEach((cell) => {
-        dataCells.push({text: cell.textContent, state: cell.dataset.state})
+        if (cell.dataset.state !== 'empty') {
+          dataCells.push({text: cell.textContent, state: cell.dataset.state});
+        }
       });
-      dataRows.push(dataCells);
+      if (dataCells.length > 0) {
+        dataRows.push(dataCells);
+      }
     });
     return dataRows;
   }, rowSelector);
@@ -74,13 +78,13 @@ const getCorrectWord = (wordleTable) => {
   return '';
 };
 
-const getCandidateWord = (wordleTable, candiateWords) => {
+const getCandidateWords = (wordleTable, candiateWords) => {
     
   let words = [];
   words = candiateWords;
-  // 初回はランダムで出力
+  // 初回
   if (wordleTable.length === 0) {
-    return words[Math.floor(Math.random() * words.length)];
+    return words;
   }
 
   // 全て存在する文字のみの候補
@@ -138,10 +142,8 @@ const getCandidateWord = (wordleTable, candiateWords) => {
     for (const items of wordleTable) {
       for (let i = 0; i < items.length; i++) {
         if (items[i].state === 'present') {
-          if (word.indexOf(items[i].text) !== -1 && word.indexOf(items[i].text) === i) {
+          if (word.indexOf(items[i].text) === i) {
             return false;
-          } else {
-            return true;
           }
         }
       }            
@@ -150,18 +152,28 @@ const getCandidateWord = (wordleTable, candiateWords) => {
   });
   
   console.log(words);
-  const candidateWord = words[Math.floor(Math.random() * words.length)];
-  return candidateWord;
+  return words;
 }
 
+const getInputCandidateWord = (wordleTable, candiateWords) => {
+  const words = getCandidateWords(wordleTable, candiateWords);
+  const uniqWords = words.filter((word) => {
+    return [...new Set([...word])].length === word.length;
+  });
+  if (uniqWords.length > 0) {
+    // ２つ以上の同じ文字を含まない単語を優先する
+    return uniqWords[Math.floor(Math.random() * uniqWords.length)];
+  }
+  return words[Math.floor(Math.random() * words.length)];
+}
 const operateWordlePage = async (page) => {
 
   // 解答候補単語全リストを取得 
   const candiateWords = await getCandiateBaseWords();
 
-  for (const word of ['rugby', 'moved', 'plans', 'witch', '', '']) {
+  for (const word of ['salet', '', '', '', '', '']) {
     let wordleTable = await getWordleTable(page);
-    let candiateWord = getCandidateWord(wordleTable, candiateWords);
+    let candiateWord = getInputCandidateWord(wordleTable, candiateWords);
     if (word.length > 0) {
       candiateWord = word;
     }
