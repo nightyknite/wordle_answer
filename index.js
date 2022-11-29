@@ -157,12 +157,14 @@ const getCandidateWords = (wordleTable, candiateWords) => {
 
 const getInputCandidateWord = (wordleTable, candiateWords) => {
   const words = getCandidateWords(wordleTable, candiateWords);
-  const uniqWords = words.filter((word) => {
-    return [...new Set([...word])].length === word.length;
-  });
-  if (uniqWords.length > 0) {
-    // ２つ以上の同じ文字を含まない単語を優先する
-    return uniqWords[Math.floor(Math.random() * uniqWords.length)];
+  if (wordleTable.length < 3) {
+    const uniqWords = words.filter((word) => {
+      return [...new Set([...word])].length === word.length;
+    });
+    if (uniqWords.length > 0) {
+      // ２つ以上の同じ文字を含まない単語を優先する
+      return uniqWords[Math.floor(Math.random() * uniqWords.length)];
+    }
   }
   return words[Math.floor(Math.random() * words.length)];
 }
@@ -171,7 +173,7 @@ const operateWordlePage = async (page) => {
   // 解答候補単語全リストを取得 
   const candiateWords = await getCandiateBaseWords();
 
-  for (const word of ['salet', '', '', '', '', '']) {
+  for (const word of ['trace', '', '', '', '', '']) {
     let wordleTable = await getWordleTable(page);
     let candiateWord = getInputCandidateWord(wordleTable, candiateWords);
     if (word.length > 0) {
