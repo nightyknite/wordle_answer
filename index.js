@@ -20,8 +20,8 @@ const getCandiateBaseWords = async () => {
     if (item.src.indexOf('wordle.') != -1) {
       const resc = await axios.get(item.src);
       let content = resc.data;
-      // it=["". ... ""]の中にある単語一覧
-      content = content.slice(content.indexOf('it=[') + 4, content.length);
+      // wt=["". ... ""]の中にある単語一覧
+      content = content.slice(content.indexOf('wt=[') + 4, content.length);
       content = content.slice(0, content.indexOf(']'));
       return content.replace(/"/g, '').split(',');
     }
@@ -173,7 +173,7 @@ const operateWordlePage = async (page) => {
   // 解答候補単語全リストを取得 
   const candiateWords = await getCandiateBaseWords();
 
-  for (const word of ['trace', '', '', '', '', '']) {
+  for (const word of ['', '', '', '', '', '']) {
     let wordleTable = await getWordleTable(page);
     let candiateWord = getInputCandidateWord(wordleTable, candiateWords);
     if (word.length > 0) {
