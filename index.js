@@ -131,7 +131,7 @@ const filterByPresentLetterPosition = (wordleTable, candiateWords) => {
   return candiateWords.filter((word) => {
     return !wordleTable.some((row) => {
       return row.some((v, i) => {
-        return v.state == 'present' && v.text == word[i];
+        return v.state === 'present' && v.text === word[i];
       });
     });
   });
