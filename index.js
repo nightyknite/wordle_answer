@@ -21,7 +21,7 @@ const getCandiateBaseWords = async () => {
       const resc = await axios.get(item.src);
       let content = resc.data;
       // wt=["". ... ""]の中にある単語一覧
-      content = content.slice(content.indexOf('wt=[') + 4, content.length);
+      content = content.slice(content.indexOf('aahed'), content.length);
       content = content.slice(0, content.indexOf(']'));
       return content.replace(/"/g, '').split(',');
     }
