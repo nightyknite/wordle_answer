@@ -78,49 +78,40 @@ const getCorrectWord = (wordleTable) => {
   return '';
 };
 
-const getCandidateWords = (wordleTable, candiateWords) => {
-    
-  let words = [];
-  words = candiateWords;
-  // 初回
-  if (wordleTable.length === 0) {
-    return words;
-  }
-
-  // 全て存在する文字のみの候補
-  const presentLetters = wordleTable.flat().filter(v => v.state === 'present' || v.state === 'correct').map(v => v.text);
-  if (presentLetters && presentLetters.length > 0) {
-    words = words.filter((word) => {            
-      return presentLetters.every(v => {
-        return word.indexOf(v) >= 0;
-      });
-    });
-  }
-
-  // 存在しない文字を除外した候補
-  let absentLetters = wordleTable.flat().filter(v => v.state === 'absent').map(v => v.text);
-  if (absentLetters && absentLetters.length > 0) {
-    if (presentLetters && presentLetters.length > 0) {
-      // presentにある文字は除外する
-      absentLetters = absentLetters.filter(v => {
-        return !presentLetters.some(w => w === v);
-      });
-    }
-    words = words.filter((word) => {
-      return !absentLetters.some(v => {
-        return word.indexOf(v) >= 0
-      });
-    });
-  }
-
-  // 前回使用した文字の場合は除外
-  words = words.filter((word) => {
-    return !wordleTable.some(r => {
-      return word === r.map(v => v.text).join('');
+const filterByPresentLetter = (wordleTable, candiateWords) => {
+  const presentLetters = wordleTable.flat()
+    .filter(v => v.state === 'present' || v.state === 'correct')
+    .map(v => v.text);
+  return candiateWords.filter((word) => {
+    return presentLetters.every(v => {
+      return word.indexOf(v) >= 0;
     });
   });
+}
 
-  // 存在してかつ位置も同じ条件で絞り込む
+const filterByAbsentLetter = (wordleTable, candiateWords) => {
+  // absent文字を取得。presentにもある場合は除外
+  const absentLetters = wordleTable.flat()
+    .filter(v => v.state === 'absent')
+    .filter(v => v.state !== 'present')
+    .map(v => v.text);
+  return candiateWords.filter((word) => {
+    return !absentLetters.some(v => {
+      return word.indexOf(v) >= 0
+    });
+  });
+}
+
+const filterByUsedWord = (wordleTable, candiateWords) => {
+  return candiateWords.filter((word) => {
+    return !wordleTable.some(letters => {
+      return word === letters.map(v => v.text).join('');
+    });
+  });
+}
+
+const filterByCorrectLetter = (wordleTable, candiateWords) => {
+  let words = candiateWords;
   let correctWords = ['', '', '', '', ''];
   for (const items of wordleTable) {
     for (let i = 0; i < items.length; i++) {
@@ -136,9 +127,11 @@ const getCandidateWords = (wordleTable, candiateWords) => {
       });
     }
   }
-
-  // 存在した文字が同じ位置にある単語は除外する
-  words = words.filter((word) => {
+  return words;
+}
+const filterByPresentLetterPosition = (wordleTable, candiateWords) => {
+  // present文字で文字の位置がすでに使用したものと同じ位置は除外する
+  return candiateWords.filter((word) => {
     for (const items of wordleTable) {
       for (let i = 0; i < items.length; i++) {
         if (items[i].state === 'present') {
@@ -150,7 +143,22 @@ const getCandidateWords = (wordleTable, candiateWords) => {
     }
     return true;
   });
-  
+}
+
+const getCandidateWords = (wordleTable, candiateWords) => {
+  let words = candiateWords;
+  // 初回
+  if (wordleTable.length === 0) return words;
+  // present文字で絞り込み
+  words = filterByPresentLetter(wordleTable, words);
+  // 存在しない文字を除外した候補
+  words = filterByAbsentLetter(wordleTable, words);
+  // 前回使用した文字の場合は除外
+  words = filterByUsedWord(wordleTable, words);
+  // 存在してかつ位置も同じ条件で絞り込む
+  words = filterByCorrectLetter(wordleTable, words);
+  // 存在した文字が同じ位置にある単語は除外する
+  words = filterByPresentLetterPosition(wordleTable, words);
   console.log(words);
   return words;
 }
