@@ -20,7 +20,7 @@ const getCandiateBaseWords = async () => {
     if (item.src.indexOf('wordle.') != -1) {
       const resc = await axios.get(item.src);
       let content = resc.data;
-      // wt=["". ... ""]の中にある単語一覧
+      // ["". ... ""]の中にある単語一覧
       content = content.slice(content.indexOf('aahed'), content.length);
       content = content.slice(0, content.indexOf(']'));
       return content.replace(/"/g, '').split(',');
@@ -91,11 +91,14 @@ const filterByPresentLetter = (wordleTable, candiateWords) => {
 };
 
 const filterByAbsentLetter = (wordleTable, candiateWords) => {
-  // absent文字を取得。presentにもある場合は除外
+  const presentLetters = wordleTable
+    .flat()
+    .filter((v) => v.state === 'present' || v.state === 'correct')
+    .map((v) => v.text);
   const absentLetters = wordleTable
     .flat()
     .filter((v) => v.state === 'absent')
-    .filter((v) => v.state !== 'present')
+    .filter((v) => presentLetters.indexOf(v.text) === -1)
     .map((v) => v.text);
   if (!absentLetters) return candiateWords;
   return candiateWords.filter((word) => {
@@ -112,15 +115,19 @@ const filterByUsedWord = (wordleTable, candiateWords) => {
     });
   });
 };
-
 const filterByCorrectLetter = (wordleTable, candiateWords) => {
-  if (!wordleTable.flat().some((v) => v.state === 'correct'))
-    return candiateWords;
+  let correctWords = ['', '', '', '', ''];
+  for (const items of wordleTable) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].state === 'correct') {
+        correctWords[i] = items[i].text;
+      }
+    }
+  }
+  if (correctWords.join('').length === 0) return candiateWords;
   return candiateWords.filter((word) => {
-    return wordleTable.some((row) => {
-      return row.some((v, i) => {
-        return v.state === 'correct' && v.text === word[i];
-      });
+    return correctWords.every((v, i) => {
+      return v.length === 0 || v === word[i];
     });
   });
 };
@@ -139,19 +146,17 @@ const filterByPresentLetterPosition = (wordleTable, candiateWords) => {
 
 const getCandidateWords = (wordleTable, candiateWords) => {
   let words = candiateWords;
-  // 初回
   if (wordleTable.length === 0) return words;
-  // present文字で絞り込み
   words = filterByPresentLetter(wordleTable, words);
-  // 存在しない文字を除外した候補
+  console.log('filterByPresentLetter', words)
   words = filterByAbsentLetter(wordleTable, words);
-  // 前回使用した文字の場合は除外
-  words = filterByUsedWord(wordleTable, words);
-  // 存在してかつ位置も同じ条件で絞り込む
+  console.log('filterByAbsentLetter', words)
+  // words = filterByUsedWord(wordleTable, words);
+  // console.log('filterByUsedWord', words)
   words = filterByCorrectLetter(wordleTable, words);
-  // 存在した文字が同じ位置にある単語は除外する
+  console.log('filterByCorrectLetter', words)
   words = filterByPresentLetterPosition(wordleTable, words);
-  console.log(words);
+  console.log('PresentLetterPosition', words);
   return words;
 };
 

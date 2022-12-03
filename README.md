@@ -1,6 +1,6 @@
 # wordle_solver
 
-![demo](https://user-images.githubusercontent.com/3150829/204144268-d02f871c-91df-4181-80df-fd2d3ecdd7d9.gif)
+![solver_movie](https://user-images.githubusercontent.com/3150829/206223073-d2a6f5a6-8e98-4d45-8d28-fff8b244264c.gif)
 
 
 ```
