@@ -5,10 +5,10 @@ const axios = require('axios');
 const TARGET_URL = 'https://www.nytimes.com/games/wordle/index.html';
 
 const delay = (time) => {
-  return new Promise((resolve) => { 
-    setTimeout(resolve, time)
+  return new Promise((resolve) => {
+    setTimeout(resolve, time);
   });
-}
+};
 
 const getCandiateBaseWords = async () => {
   const res = await axios.get(TARGET_URL);
@@ -27,7 +27,7 @@ const getCandiateBaseWords = async () => {
     }
   }
   return [];
-}
+};
 
 const getWordleTable = async (page) => {
   const rowSelector = 'div[class*="Row-module_row"]';
@@ -40,7 +40,7 @@ const getWordleTable = async (page) => {
       let dataCells = [];
       cells.forEach((cell) => {
         if (cell.dataset.state !== 'empty') {
-          dataCells.push({text: cell.textContent, state: cell.dataset.state});
+          dataCells.push({ text: cell.textContent, state: cell.dataset.state });
         }
       });
       if (dataCells.length > 0) {
@@ -50,7 +50,7 @@ const getWordleTable = async (page) => {
     return dataRows;
   }, rowSelector);
   return table;
-}
+};
 
 const inputWord = async (page, word) => {
   await page.keyboard.type(word);
@@ -62,7 +62,7 @@ const convCell = (state) => {
   if (state === 'absent') return '⬜';
   if (state === 'present') return '🟨';
   if (state === 'empty') return '';
-}
+};
 
 const outputCells = (wordleTable) => {
   for (const row of wordleTable) {
@@ -71,79 +71,71 @@ const outputCells = (wordleTable) => {
 };
 
 const getCorrectWord = (wordleTable) => {
-  for (const row of wordleTable) {
-    const isCorrect = row.every((v) => {return v.state === 'correct';});
-    if (isCorrect) return row.map((v) => v.text).join('');
-  }
-  return '';
+  const row = wordleTable.find((row) =>
+    row.every((v) => v.state === 'correct')
+  );
+  return row ? row.map((v) => v.text).join('') : '';
 };
 
 const filterByPresentLetter = (wordleTable, candiateWords) => {
-  const presentLetters = wordleTable.flat()
-    .filter(v => v.state === 'present' || v.state === 'correct')
-    .map(v => v.text);
+  const presentLetters = wordleTable
+    .flat()
+    .filter((v) => v.state === 'present' || v.state === 'correct')
+    .map((v) => v.text);
+  if (!presentLetters) return candiateWords;
   return candiateWords.filter((word) => {
-    return presentLetters.every(v => {
+    return presentLetters.every((v) => {
       return word.indexOf(v) >= 0;
     });
   });
-}
+};
 
 const filterByAbsentLetter = (wordleTable, candiateWords) => {
   // absent文字を取得。presentにもある場合は除外
-  const absentLetters = wordleTable.flat()
-    .filter(v => v.state === 'absent')
-    .filter(v => v.state !== 'present')
-    .map(v => v.text);
+  const absentLetters = wordleTable
+    .flat()
+    .filter((v) => v.state === 'absent')
+    .filter((v) => v.state !== 'present')
+    .map((v) => v.text);
+  if (!absentLetters) return candiateWords;
   return candiateWords.filter((word) => {
-    return !absentLetters.some(v => {
-      return word.indexOf(v) >= 0
+    return !absentLetters.some((v) => {
+      return word.indexOf(v) >= 0;
     });
   });
-}
+};
 
 const filterByUsedWord = (wordleTable, candiateWords) => {
   return candiateWords.filter((word) => {
-    return !wordleTable.some(letters => {
-      return word === letters.map(v => v.text).join('');
+    return !wordleTable.some((letters) => {
+      return word === letters.map((v) => v.text).join('');
     });
   });
-}
+};
 
 const filterByCorrectLetter = (wordleTable, candiateWords) => {
-  let words = candiateWords;
-  let correctWords = ['', '', '', '', ''];
-  for (const items of wordleTable) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].state === 'correct') {
-        correctWords[i] = items[i].text;
-      }
-    }
-  }
-  for (let i = 0; i < correctWords.length; i++) {
-    if (correctWords[i] !== '') {
-      words = words.filter((word) => { 
-        return word[i] === correctWords[i];
+  if (!wordleTable.flat().some((v) => v.state === 'correct'))
+    return candiateWords;
+  return candiateWords.filter((word) => {
+    return wordleTable.some((row) => {
+      return row.some((v, i) => {
+        return v.state === 'correct' && v.text === word[i];
       });
-    }
-  }
-  return words;
-}
+    });
+  });
+};
 const filterByPresentLetterPosition = (wordleTable, candiateWords) => {
   // present文字で文字の位置がすでに使用したものと同じ位置は除外する
+  if (!wordleTable.flat().some((v) => v.state === 'present'))
+    return candiateWords;
   return candiateWords.filter((word) => {
-    for (const items of wordleTable) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].state === 'present') {
-          if (word.indexOf(items[i].text) === i) {
-            return false;
-          }
-        }
-      }            
-    }
-    return true;
+    return !wordleTable.some((row) => {
+      return row.some((v, i) => {
+        return v.state == 'present' && v.text == word[i];
+      });
+    });
   });
-}
+};
 
 const getCandidateWords = (wordleTable, candiateWords) => {
   let words = candiateWords;
@@ -161,7 +153,7 @@ const getCandidateWords = (wordleTable, candiateWords) => {
   words = filterByPresentLetterPosition(wordleTable, words);
   console.log(words);
   return words;
-}
+};
 
 const getInputCandidateWord = (wordleTable, candiateWords) => {
   const words = getCandidateWords(wordleTable, candiateWords);
@@ -175,10 +167,9 @@ const getInputCandidateWord = (wordleTable, candiateWords) => {
     }
   }
   return words[Math.floor(Math.random() * words.length)];
-}
+};
 const operateWordlePage = async (page) => {
-
-  // 解答候補単語全リストを取得 
+  // 解答候補単語全リストを取得
   const candiateWords = await getCandiateBaseWords();
 
   for (const word of ['', '', '', '', '', '']) {
@@ -209,7 +200,7 @@ const operateWordlePage = async (page) => {
     defaultViewport: {
       width: 400,
       height: 600,
-    }
+    },
   };
   const browser = await puppeteer.launch(options);
   const page = await browser.newPage();
@@ -221,5 +212,4 @@ const operateWordlePage = async (page) => {
   await operateWordlePage(page);
   await page.screenshot({ path: 'wordle2.png', fullPage: true });
   await browser.close();
-
-})()
+})();
