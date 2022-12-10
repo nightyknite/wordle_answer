@@ -1,3 +1,4 @@
+
 const puppeteer = require('puppeteer');
 const { JSDOM } = require('jsdom');
 const axios = require('axios');
@@ -12,12 +13,10 @@ const delay = (time) => {
 
 const getCandiateBaseWords = async () => {
   const res = await axios.get(TARGET_URL);
-  const { data } = res;
-  const dom = new JSDOM(data);
+  const dom = new JSDOM(res.data);
   const scriptLists = dom.window.document.querySelectorAll('script');
   for (const item of scriptLists) {
-    // scriptタグからwordle.xxx.js形式のファイルを読み込む
-    if (item.src.indexOf('wordle.') != -1) {
+    if (item.src.indexOf('wordle.') !== -1) {
       const resc = await axios.get(item.src);
       let content = resc.data;
       // ["". ... ""]の中にある単語一覧
@@ -107,7 +106,7 @@ const filterByAbsentLetter = (wordleTable, candiateWords) => {
     });
   });
 };
-
+/*
 const filterByUsedWord = (wordleTable, candiateWords) => {
   return candiateWords.filter((word) => {
     return !wordleTable.some((letters) => {
@@ -115,6 +114,7 @@ const filterByUsedWord = (wordleTable, candiateWords) => {
     });
   });
 };
+*/
 const filterByCorrectLetter = (wordleTable, candiateWords) => {
   let correctWords = ['', '', '', '', ''];
   for (const items of wordleTable) {
@@ -132,7 +132,7 @@ const filterByCorrectLetter = (wordleTable, candiateWords) => {
   });
 };
 const filterByPresentLetterPosition = (wordleTable, candiateWords) => {
-  // present文字で文字の位置がすでに使用したものと同じ位置は除外する
+  // 
   if (!wordleTable.flat().some((v) => v.state === 'present'))
     return candiateWords;
   return candiateWords.filter((word) => {
@@ -156,7 +156,7 @@ const getCandidateWords = (wordleTable, candiateWords) => {
   words = filterByCorrectLetter(wordleTable, words);
   console.log('filterByCorrectLetter', words)
   words = filterByPresentLetterPosition(wordleTable, words);
-  console.log('PresentLetterPosition', words);
+  console.log('filterByPresentLetterPosition', words);
   return words;
 };
 
@@ -174,9 +174,7 @@ const getInputCandidateWord = (wordleTable, candiateWords) => {
   return words[Math.floor(Math.random() * words.length)];
 };
 const operateWordlePage = async (page) => {
-  // 解答候補単語全リストを取得
   const candiateWords = await getCandiateBaseWords();
-
   for (const word of ['', '', '', '', '', '']) {
     let wordleTable = await getWordleTable(page);
     let candiateWord = getInputCandidateWord(wordleTable, candiateWords);
@@ -211,9 +209,7 @@ const operateWordlePage = async (page) => {
   const page = await browser.newPage();
   await page.goto(TARGET_URL);
   await page.screenshot({ path: 'wordle1.png', fullPage: true });
-  // ポップアップを閉じる
   await page.click('button[aria-label="Close"]');
-  // wordle解答入力を行う
   await operateWordlePage(page);
   await page.screenshot({ path: 'wordle2.png', fullPage: true });
   await browser.close();
