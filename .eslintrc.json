@@ -1,27 +1,19 @@
 {
-    "env": {
-        "browser": true,
-        "commonjs": true,
-        "es2021": true
-    },
-    "extends": "eslint:recommended",
-    "overrides": [
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/eslint-recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:prettier/recommended"
     ],
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "env": { "node": true, "es6": true },
+    "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "ecmaVersion": "latest"
+      "sourceType": "module",
+      "project": "./tsconfig.json"
     },
     "rules": {
-        "no-multi-spaces": 2,
-        "no-multiple-empty-lines": [2, {"max": 1}],
-        "quotes": [2, "single"],
-        "keyword-spacing": 2,
-        "indent": [2, 2],
-        "computed-property-spacing": 2,
-        "key-spacing": 2,
-        "comma-spacing": 2,
-        "no-var": 2,
-        "no-unneeded-ternary": 2,
-        "func-call-spacing": [2, "never"],
-        "no-extra-parens": 1
     }
-}
+  }
