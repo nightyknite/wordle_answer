@@ -1,10 +1,15 @@
-import puppeteer from "puppeteer";
+import puppeteer, { Page } from "puppeteer";
 import { JSDOM } from "jsdom";
 import axios from "axios";
 
 const TARGET_URL = "https://www.nytimes.com/games/wordle/index.html";
 
-const delay = (time: number | undefined) => {
+interface WordleCell {
+  state: string;
+  text: string;
+}
+
+const delay = (time: number) => {
   return new Promise((resolve) => {
     setTimeout(resolve, time);
   });
@@ -13,12 +18,12 @@ const delay = (time: number | undefined) => {
 const getCandiateBaseWords = async () => {
   const res = await axios.get(TARGET_URL);
   const dom = new JSDOM(res.data);
-  const scriptLists = dom.window.document.querySelectorAll("script");
+  const scriptLists =
+    dom.window.document.querySelectorAll<HTMLInputElement>("script");
   for (const item of scriptLists) {
     if (item.src.indexOf("wordle.") !== -1) {
       const resc = await axios.get(item.src);
       let content = resc.data;
-      // ["". ... ""]の中にある単語一覧
       content = content.slice(content.indexOf("aahed"), content.length);
       content = content.slice(0, content.indexOf("]"));
       return content.replace(/"/g, "").split(",");
@@ -27,27 +32,23 @@ const getCandiateBaseWords = async () => {
   return [];
 };
 
-const getWordleTable = async (page: {
-  evaluate: (arg0: (selector: any) => any[], arg1: string) => any;
-}) => {
+const getWordleTable = async (page: Page) => {
   const rowSelector = 'div[class*="Row-module_row"]';
-  const table = await page.evaluate((selector: any) => {
-    const dataRows: any[][] = [];
-    const rows = document.querySelectorAll(selector);
+  const table = await page.evaluate((selector: string) => {
+    const dataRows: WordleCell[][] = [];
+    const rows = document.querySelectorAll<HTMLInputElement>(selector);
     rows.forEach((element) => {
       const cellSelector = 'div[class*="Tile-module_tile"]';
-      const cells = element.querySelectorAll(cellSelector);
-      const dataCells: { text: any; state: any }[] = [];
-      cells.forEach(
-        (cell: { dataset: { state: string }; textContent: any }) => {
-          if (cell.dataset.state !== "empty") {
-            dataCells.push({
-              text: cell.textContent,
-              state: cell.dataset.state,
-            });
-          }
+      const cells = element.querySelectorAll<HTMLInputElement>(cellSelector);
+      const dataCells: { text: string; state: string }[] = [];
+      cells.forEach((cell) => {
+        if (cell.dataset.state !== "empty") {
+          dataCells.push({
+            text: <string>cell.textContent,
+            state: <string>cell.dataset.state,
+          });
         }
-      );
+      });
       if (dataCells.length > 0) {
         dataRows.push(dataCells);
       }
@@ -57,12 +58,7 @@ const getWordleTable = async (page: {
   return table;
 };
 
-const inputWord = async (
-  page: {
-    keyboard: { type: (arg0: any) => any; press: (arg0: string) => any };
-  },
-  word: any
-) => {
+const inputWord = async (page: Page, word: string) => {
   await page.keyboard.type(word);
   await page.keyboard.press("Enter");
 };
@@ -74,49 +70,51 @@ const convCell = (state: string) => {
   if (state === "empty") return "";
 };
 
-const outputCells = (wordleTable: any) => {
+const outputCells = (wordleTable: WordleCell[][]) => {
   for (const row of wordleTable) {
-    console.log(row.map((v: { state: any }) => convCell(v.state)).join(""));
+    console.log(row.map((v: WordleCell) => convCell(v.state)).join(""));
   }
 };
 
-const getCorrectWord = (wordleTable: any[]) => {
-  const row = wordleTable.find((row: any[]) =>
-    row.every((v: { state: string }) => v.state === "correct")
+const getCorrectWord = (wordleTable: WordleCell[][]) => {
+  const row = wordleTable.find((row: WordleCell[]) =>
+    row.every((v: WordleCell) => v.state === "correct")
   );
-  return row ? row.map((v: { text: any }) => v.text).join("") : "";
+  return row ? row.map((v: WordleCell) => v.text).join("") : "";
 };
 
-const filterByPresentLetter = (wordleTable: any[], candiateWords: any[]) => {
+const filterByPresentLetter = (
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
+) => {
   const presentLetters = wordleTable
     .flat()
-    .filter(
-      (v: { state: string }) => v.state === "present" || v.state === "correct"
-    )
-    .map((v: { text: any }) => v.text);
+    .filter((v: WordleCell) => v.state === "present" || v.state === "correct")
+    .map((v: WordleCell) => v.text);
   if (!presentLetters) return candiateWords;
-  return candiateWords.filter((word: string | any[]) => {
-    return presentLetters.every((v: any) => {
+  return candiateWords.filter((word: string) => {
+    return presentLetters.every((v: string) => {
       return word.indexOf(v) >= 0;
     });
   });
 };
 
-const filterByAbsentLetter = (wordleTable: any[], candiateWords: any[]) => {
+const filterByAbsentLetter = (
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
+) => {
   const presentLetters = wordleTable
     .flat()
-    .filter(
-      (v: { state: string }) => v.state === "present" || v.state === "correct"
-    )
-    .map((v: { text: any }) => v.text);
+    .filter((v: WordleCell) => v.state === "present" || v.state === "correct")
+    .map((v: WordleCell) => v.text);
   const absentLetters = wordleTable
     .flat()
-    .filter((v: { state: string }) => v.state === "absent")
-    .filter((v: { text: any }) => presentLetters.indexOf(v.text) === -1)
-    .map((v: { text: any }) => v.text);
+    .filter((v: WordleCell) => v.state === "absent")
+    .filter((v: WordleCell) => presentLetters.indexOf(v.text) === -1)
+    .map((v: WordleCell) => v.text);
   if (!absentLetters) return candiateWords;
-  return candiateWords.filter((word: string | any[]) => {
-    return !absentLetters.some((v: any) => {
+  return candiateWords.filter((word: string) => {
+    return !absentLetters.some((v: string) => {
       return word.indexOf(v) >= 0;
     });
   });
@@ -130,7 +128,10 @@ const filterByUsedWord = (wordleTable, candiateWords) => {
   });
 };
 */
-const filterByCorrectLetter = (wordleTable: any, candiateWords: any[]) => {
+const filterByCorrectLetter = (
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
+) => {
   const correctWords = ["", "", "", "", ""];
   for (const items of wordleTable) {
     for (let i = 0; i < items.length; i++) {
@@ -140,29 +141,31 @@ const filterByCorrectLetter = (wordleTable: any, candiateWords: any[]) => {
     }
   }
   if (correctWords.join("").length === 0) return candiateWords;
-  return candiateWords.filter((word: string[]) => {
+  return candiateWords.filter((word: string) => {
     return correctWords.every((v, i) => {
       return v.length === 0 || v === word[i];
     });
   });
 };
 const filterByPresentLetterPosition = (
-  wordleTable: any[],
-  candiateWords: any[]
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
 ) => {
-  //
-  if (!wordleTable.flat().some((v: { state: string }) => v.state === "present"))
+  if (!wordleTable.flat().some((v: WordleCell) => v.state === "present"))
     return candiateWords;
-  return candiateWords.filter((word: { [x: string]: any }) => {
-    return !wordleTable.some((row: any[]) => {
-      return row.some((v: { state: string; text: any }, i: string | number) => {
+  return candiateWords.filter((word: string) => {
+    return !wordleTable.some((row: WordleCell[]) => {
+      return row.some((v: WordleCell, i: number) => {
         return v.state === "present" && v.text === word[i];
       });
     });
   });
 };
 
-const getCandidateWords = (wordleTable: any | any[], candiateWords: any) => {
+const getCandidateWords = (
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
+) => {
   let words = candiateWords;
   if (wordleTable.length === 0) return words;
   words = filterByPresentLetter(wordleTable, words);
@@ -179,22 +182,21 @@ const getCandidateWords = (wordleTable: any | any[], candiateWords: any) => {
 };
 
 const getInputCandidateWord = (
-  wordleTable: string | any[],
-  candiateWords: any
+  wordleTable: WordleCell[][],
+  candiateWords: string[]
 ) => {
   const words = getCandidateWords(wordleTable, candiateWords);
   if (wordleTable.length < 3) {
-    const uniqWords = words.filter((word: string | any[]) => {
+    const uniqWords = words.filter((word: string) => {
       return [...new Set([...word])].length === word.length;
     });
     if (uniqWords.length > 0) {
-      // ２つ以上の同じ文字を含まない単語を優先する
       return uniqWords[Math.floor(Math.random() * uniqWords.length)];
     }
   }
   return words[Math.floor(Math.random() * words.length)];
 };
-const operateWordlePage = async (page: any) => {
+const operateWordlePage = async (page: Page) => {
   const candiateWords = await getCandiateBaseWords();
   for (const word of ["", "", "", "", "", ""]) {
     let wordleTable = await getWordleTable(page);
